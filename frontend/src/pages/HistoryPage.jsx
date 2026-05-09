@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { historyApi } from '../services/api';
+import { useAnalysisStore } from '../hooks/useStore';
 import toast from 'react-hot-toast';
 
 const MODE_COLORS = {
@@ -15,6 +18,14 @@ export default function HistoryPage() {
   const [pagination, setPagination] = useState({});
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [expandedCodes, setExpandedCodes] = useState(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterMode, setFilterMode] = useState('');
+  const [filterLanguage, setFilterLanguage] = useState('');
+  const [favorites, setFavorites] = useState(new Set(JSON.parse(localStorage.getItem('favorites') || '[]')));
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  const [selectedItems, setSelectedItems] = useState(new Set());
+  const { setCode, setMode, setLanguage } = useAnalysisStore();
 
   const load = async (p = 1) => {
 
@@ -66,6 +77,111 @@ export default function HistoryPage() {
     }
   };
 
+  const toggleCodeExpansion = (id) => {
+    setExpandedCodes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const copyCode = async (code) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      toast.success('Code copied to clipboard!');
+    } catch (err) {
+      toast.error('Failed to copy code');
+    }
+  };
+
+  const reRunAnalysis = (analysis) => {
+    setCode(analysis.codeSnippet);
+    setMode(analysis.mode);
+    setLanguage(analysis.language);
+    toast.success('Code loaded in editor. Switch to Editor tab to re-run analysis.');
+  };
+
+  const toggleFavorite = (id) => {
+    setFavorites(prev => {
+      const newFavorites = new Set(prev);
+      if (newFavorites.has(id)) {
+        newFavorites.delete(id);
+        toast.success('Removed from favorites');
+      } else {
+        newFavorites.add(id);
+        toast.success('Added to favorites');
+      }
+      localStorage.setItem('favorites', JSON.stringify([...newFavorites]));
+      return newFavorites;
+    });
+  };
+
+  const toggleSelection = (id) => {
+    setSelectedItems(prev => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(id)) {
+        newSelected.delete(id);
+      } else {
+        newSelected.add(id);
+      }
+      return newSelected;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedItems(new Set(filteredAnalyses.map(a => a._id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedItems(new Set());
+  };
+
+  const bulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+    if (!confirm(`Delete ${selectedItems.size} selected analyses?`)) return;
+
+    try {
+      await Promise.all([...selectedItems].map(id => historyApi.deleteAnalysis(id)));
+      setAnalyses(prev => prev.filter(a => !selectedItems.has(a._id)));
+      setSelectedItems(new Set());
+      toast.success(`Deleted ${selectedItems.size} analyses`);
+    } catch {
+      toast.error('Bulk delete failed');
+    }
+  };
+
+  const exportSelected = () => {
+    const selectedData = filteredAnalyses.filter(a => selectedItems.has(a._id));
+    const dataStr = JSON.stringify(selectedData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+
+    const exportFileDefaultName = `codelens-analyses-${new Date().toISOString().split('T')[0]}.json`;
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+
+    toast.success('Analyses exported successfully!');
+  };
+
+  const filteredAnalyses = analyses.filter(a => {
+    const matchesSearch = !searchTerm ||
+      a.codeSnippet.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.language.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.mode.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesMode = !filterMode || a.mode === filterMode;
+    const matchesLanguage = !filterLanguage || a.language === filterLanguage;
+    const matchesFavorites = !showOnlyFavorites || favorites.has(a._id);
+
+    return matchesSearch && matchesMode && matchesLanguage && matchesFavorites;
+  });
+
   return (
     <div
       style={{
@@ -112,6 +228,192 @@ export default function HistoryPage() {
 
         <>
 
+          {/* Search and Filter Controls */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '12px',
+              marginBottom: '1.5rem',
+              alignItems: 'center'
+            }}
+          >
+
+            <input
+              type="text"
+              placeholder="Search code, language, or mode..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                flex: '1',
+                minWidth: '200px',
+                padding: '8px 12px',
+                background: '#15151c',
+                border: '1px solid #2a2a3a',
+                borderRadius: '8px',
+                color: '#e8e8f0',
+                fontSize: '14px'
+              }}
+            />
+
+            <select
+              value={filterMode}
+              onChange={(e) => setFilterMode(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                background: '#15151c',
+                border: '1px solid #2a2a3a',
+                borderRadius: '8px',
+                color: '#e8e8f0',
+                fontSize: '14px',
+                minWidth: '120px'
+              }}
+            >
+              <option value="">All Modes</option>
+              <option value="review">Review</option>
+              <option value="explain">Explain</option>
+              <option value="refactor">Refactor</option>
+              <option value="test">Test</option>
+            </select>
+
+            <select
+              value={filterLanguage}
+              onChange={(e) => setFilterLanguage(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                background: '#15151c',
+                border: '1px solid #2a2a3a',
+                borderRadius: '8px',
+                color: '#e8e8f0',
+                fontSize: '14px',
+                minWidth: '120px'
+              }}
+            >
+              <option value="">All Languages</option>
+              <option value="JavaScript">JavaScript</option>
+              <option value="TypeScript">TypeScript</option>
+              <option value="Python">Python</option>
+              <option value="Go">Go</option>
+              <option value="Rust">Rust</option>
+              <option value="Java">Java</option>
+              <option value="C++">C++</option>
+              <option value="PHP">PHP</option>
+            </select>
+
+            {(searchTerm || filterMode || filterLanguage) && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilterMode('');
+                  setFilterLanguage('');
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: '#D85A30',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#e8e8f0',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Clear Filters
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+              style={{
+                padding: '8px 16px',
+                background: showOnlyFavorites ? '#BA7517' : '#15151c',
+                border: '1px solid #2a2a3a',
+                borderRadius: '8px',
+                color: '#e8e8f0',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              ⭐ {showOnlyFavorites ? 'Show All' : 'Favorites Only'} ({favorites.size})
+            </button>
+
+          </div>
+
+          {/* Bulk Actions */}
+          {filteredAnalyses.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '1rem',
+                padding: '12px',
+                background: '#0f0f16',
+                borderRadius: '8px',
+                border: '1px solid #2a2a3a'
+              }}
+            >
+
+              <input
+                type="checkbox"
+                checked={selectedItems.size === filteredAnalyses.length && filteredAnalyses.length > 0}
+                onChange={(e) => e.target.checked ? selectAll() : clearSelection()}
+                style={{ margin: 0 }}
+              />
+
+              <span style={{ fontSize: '14px', color: '#e8e8f0' }}>
+                {selectedItems.size} of {filteredAnalyses.length} selected
+              </span>
+
+              {selectedItems.size > 0 && (
+                <>
+                  <button
+                    onClick={clearSelection}
+                    style={{
+                      padding: '6px 12px',
+                      background: '#666',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: '#e8e8f0',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={bulkDelete}
+                    style={{
+                      padding: '6px 12px',
+                      background: '#D85A30',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: '#e8e8f0',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    Delete Selected
+                  </button>
+                  <button
+                    onClick={exportSelected}
+                    style={{
+                      padding: '6px 12px',
+                      background: '#1D9E75',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: '#e8e8f0',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    Export Selected
+                  </button>
+                </>
+              )}
+
+            </div>
+          )}
+
           <div
             style={{
               display: 'flex',
@@ -120,7 +422,7 @@ export default function HistoryPage() {
             }}
           >
 
-            {analyses.map(a => (
+            {filteredAnalyses.map(a => (
 
               <div
                 key={a._id}
@@ -142,6 +444,13 @@ export default function HistoryPage() {
                     gap: '16px'
                   }}
                 >
+
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.has(a._id)}
+                    onChange={() => toggleSelection(a._id)}
+                    style={{ margin: 0 }}
+                  />
 
                   <span
                     style={{
@@ -186,6 +495,18 @@ export default function HistoryPage() {
                     </span>
 
                   )}
+
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: '#666',
+                      background: '#0f0f16',
+                      padding: '2px 6px',
+                      borderRadius: '4px'
+                    }}
+                  >
+                    {a.codeSnippet.split('\n').length} lines • {a.codeSnippet.length} chars
+                  </span>
 
                   {a.cached && (
 
@@ -236,16 +557,111 @@ export default function HistoryPage() {
                   }}
                 >
 
-                  <pre
-                    style={{
-                      margin: 0,
-                      fontSize: '12px',
-                      color: '#ccc',
-                      whiteSpace: 'pre-wrap'
-                    }}
-                  >
-                    {a.codeSnippet}
-                  </pre>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '12px', color: '#888', fontWeight: 600 }}>
+                      Code Tested ({a.codeSnippet.length} chars • {a.codeSnippet.split('\n').length} lines)
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => toggleFavorite(a._id)}
+                        style={{
+                          background: 'none',
+                          border: '1px solid #2a2a3a',
+                          color: favorites.has(a._id) ? '#FFD700' : '#666',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: favorites.has(a._id) ? '#FFD70020' : 'transparent'
+                        }}
+                      >
+                        {favorites.has(a._id) ? '★ Favorited' : '☆ Favorite'}
+                      </button>
+                      <button
+                        onClick={() => copyCode(a.codeSnippet)}
+                        style={{
+                          background: 'none',
+                          border: '1px solid #2a2a3a',
+                          color: '#1D9E75',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: '#1D9E7520'
+                        }}
+                      >
+                        📋 Copy
+                      </button>
+                      <button
+                        onClick={() => reRunAnalysis(a)}
+                        style={{
+                          background: 'none',
+                          border: '1px solid #2a2a3a',
+                          color: '#7F77DD',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: '#7F77DD20'
+                        }}
+                      >
+                        🔄 Re-run
+                      </button>
+                      <button
+                        onClick={() => toggleCodeExpansion(a._id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#BA7517',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: '#BA751720'
+                        }}
+                      >
+                        {expandedCodes.has(a._id) ? 'Collapse' : 'Expand'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    maxHeight: expandedCodes.has(a._id) ? 'none' : '200px',
+                    overflow: expandedCodes.has(a._id) ? 'visible' : 'hidden',
+                    position: 'relative'
+                  }}>
+                    <SyntaxHighlighter
+                      language={a.language.toLowerCase()}
+                      style={vscDarkPlus}
+                      customStyle={{
+                        margin: 0,
+                        padding: '12px',
+                        background: 'transparent',
+                        fontSize: '12px',
+                        lineHeight: '1.4'
+                      }}
+                      wrapLines={true}
+                      wrapLongLines={true}
+                    >
+                      {a.codeSnippet}
+                    </SyntaxHighlighter>
+                    {!expandedCodes.has(a._id) && a.codeSnippet.length > 300 && (
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: '40px',
+                        background: 'linear-gradient(transparent, #0f0f16)',
+                        display: 'flex',
+                        alignItems: 'end',
+                        justifyContent: 'center',
+                        paddingBottom: '8px'
+                      }}>
+                        <span style={{ fontSize: '11px', color: '#666' }}>Click expand to see full code</span>
+                      </div>
+                    )}
+                  </div>
 
                 </div>
 

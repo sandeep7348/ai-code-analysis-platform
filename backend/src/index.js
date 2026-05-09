@@ -9,6 +9,26 @@ const mongoose = require('mongoose');
 
 const logger = require('./middleware/logger');
 
+// ─────────────────────────────────────────────────────────────
+// Validate required environment variables
+// ─────────────────────────────────────────────────────────────
+
+const requiredEnvVars = [
+  'OR_API_KEY',
+  'MONGO_URI',
+  'REDIS_URL',
+  'JWT_SECRET'
+];
+
+const missingEnvVars = requiredEnvVars.filter(v => !process.env[v]);
+
+if (missingEnvVars.length > 0) {
+  logger.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  process.exit(1);
+}
+
+logger.info('✓ All required environment variables are configured');
+
 const {
   metricsMiddleware,
   metricsRouter

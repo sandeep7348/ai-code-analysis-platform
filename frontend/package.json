@@ -11,6 +11,7 @@
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.24.0",
     "react-scripts": "5.0.1",
+    "react-syntax-highlighter": "^16.1.1",
     "recharts": "^2.12.7",
     "zustand": "^4.5.4"
   },
@@ -21,7 +22,12 @@
     "eject": "react-scripts eject"
   },
   "browserslist": {
-    "production": [">0.2%", "not dead"],
-    "development": ["last 1 chrome version"]
+    "production": [
+      ">0.2%",
+      "not dead"
+    ],
+    "development": [
+      "last 1 chrome version"
+    ]
   }
 }

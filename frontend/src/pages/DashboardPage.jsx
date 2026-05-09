@@ -7,10 +7,28 @@ const COLORS = ['#7F77DD', '#1D9E75', '#BA7517', '#D85A30'];
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
   const [analyses, setAnalyses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const refreshStats = async () => {
+    try {
+      const [statsRes, historyRes] = await Promise.all([
+        historyApi.getStats(),
+        historyApi.getHistory(1, 50)
+      ]);
+      setStats(statsRes.data);
+      setAnalyses(historyRes.data.analyses || []);
+    } catch (err) {
+      console.error('Failed to refresh stats', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    historyApi.getStats().then(r => setStats(r.data)).catch(() => {});
-    historyApi.getHistory(1, 50).then(r => setAnalyses(r.data.analyses || [])).catch(() => {});
+    refreshStats();
+    // Auto-refresh every 10 seconds
+    const interval = setInterval(refreshStats, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const modeCounts = analyses.reduce((acc, a) => { acc[a.mode] = (acc[a.mode] || 0) + 1; return acc; }, {});
@@ -28,7 +46,25 @@ export default function DashboardPage() {
 
   return (
     <div style={{ fontFamily: "'Syne', sans-serif", color: '#e8e8f0' }}>
-      <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '1.5rem', color: '#e8e8f0' }}>Dashboard</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#e8e8f0', margin: 0 }}>Dashboard</h1>
+        <button
+          onClick={refreshStats}
+          disabled={loading}
+          style={{
+            padding: '8px 16px',
+            background: '#7F77DD',
+            border: 'none',
+            borderRadius: '8px',
+            color: '#e8e8f0',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            opacity: loading ? 0.6 : 1
+          }}
+        >
+          🔄 {loading ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '2rem' }}>
         {card('Total Analyses', stats?.totalAnalyses)}

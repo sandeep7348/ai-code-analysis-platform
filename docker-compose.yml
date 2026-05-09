@@ -66,9 +66,9 @@ services:
 
       JWT_SECRET: supersecretjwtkey123
 
-      VITE_OR_API_KEY: ${VITE_OR_API_KEY}
-      VITE_OR_BASE: ${VITE_OR_BASE}
-      VITE_OR_MODEL: ${VITE_OR_MODEL}
+      OR_API_KEY: ${OR_API_KEY}
+      OR_BASE: ${OR_BASE:-https://openrouter.ai/api/v1}
+      OR_MODEL: ${OR_MODEL:-openrouter/auto}
 
       CORS_ORIGIN: http://localhost:3000
 

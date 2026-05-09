@@ -57,11 +57,22 @@ router.get('/stats', authMiddleware, async (req, res) => {
         $group: {
           _id: null,
           totalAnalyses: { $sum: 1 },
-          avgScore: { $avg: '$score' },
+          avgScore: { $avg: { $cond: [{ $ne: ['$score', null] }, '$score', null] } },
+          totalScored: { $sum: { $cond: [{ $ne: ['$score', null] }, 1, 0] } },
           totalTokens: { $sum: '$tokensUsed' },
           avgDuration: { $avg: '$durationMs' },
           byMode: { $push: '$mode' },
           byLanguage: { $push: '$language' }
+        }
+      },
+      {
+        $project: {
+          totalAnalyses: 1,
+          avgScore: { $cond: [{ $gt: ['$totalScored', 0] }, '$avgScore', 0] },
+          totalTokens: 1,
+          avgDuration: 1,
+          byMode: 1,
+          byLanguage: 1
         }
       }
     ]);

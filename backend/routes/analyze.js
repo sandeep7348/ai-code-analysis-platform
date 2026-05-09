@@ -19,8 +19,17 @@ const router = express.Router();
 // ─── OpenRouter helper (OpenAI-compatible) ────────────────────
 const OR_BASE  = process.env.OR_BASE  || 'https://openrouter.ai/api/v1';
 const OR_MODEL = process.env.OR_MODEL || 'openrouter/auto';
+const OR_API_KEY = process.env.OR_API_KEY;
+
+if (!OR_API_KEY) {
+  logger.warn('WARNING: OR_API_KEY environment variable is not set. Analysis requests will fail.');
+}
 
 async function orChat({ system, messages, max_tokens = 1500 }) {
+  if (!OR_API_KEY) {
+    throw new Error('OpenRouter API key is not configured. Set OR_API_KEY environment variable.');
+  }
+
   const body = {
     model: OR_MODEL,
     max_tokens,
@@ -33,7 +42,7 @@ async function orChat({ system, messages, max_tokens = 1500 }) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OR_API_KEY}`,
+      'Authorization': `Bearer ${OR_API_KEY}`,
       'HTTP-Referer': 'https://codelens-ai.app',  // optional but polite
       'X-Title': 'CodeLens AI',
     },
@@ -91,7 +100,7 @@ router.post('/',
   analyzeLimiter,
   optionalAuth,
   [
-    body('code').notEmpty().isLength({ max: 10000 }).withMessage('Code must be 1–10000 characters'),
+    body('code').notEmpty().isLength({ max: 50000 }).withMessage('Code must be 1–50000 characters'),
     body('mode').isIn(['review', 'explain', 'refactor', 'test']),
     body('language').notEmpty().isLength({ max: 50 })
   ],
@@ -146,7 +155,7 @@ router.post('/',
         mode,
         language,
         codeHash,
-        codeSnippet: code.substring(0, 500),
+        codeSnippet: code,
         result,
         tokensUsed: payload.tokensUsed,
         durationMs,

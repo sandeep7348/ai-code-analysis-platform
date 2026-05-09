@@ -6,7 +6,7 @@ const analysisSchema = new mongoose.Schema({
   mode: { type: String, enum: ['review', 'explain', 'refactor', 'test'], required: true },
   language: { type: String, required: true },
   codeHash: { type: String, required: true },
-  codeSnippet: { type: String, required: true, maxlength: 10000 },
+  codeSnippet: { type: String, required: true, maxlength: 50000 },
   result: { type: mongoose.Schema.Types.Mixed, required: true },
   tokensUsed: { type: Number, default: 0 },
   durationMs: { type: Number, default: 0 },
