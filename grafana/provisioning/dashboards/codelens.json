@@ -1,0 +1,74 @@
+{
+  "uid": "codelens-main",
+  "title": "CodeLens AI — Overview",
+  "tags": ["codelens"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Total API Requests",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "sum(codelens_http_requests_total)", "legendFormat": "Total" }],
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{"color":"green","value":null}] } } }
+    },
+    {
+      "id": 2, "type": "stat", "title": "AI Analyses Today",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [{ "expr": "sum(increase(codelens_ai_analysis_total[24h]))", "legendFormat": "Analyses" }],
+      "options": { "colorMode": "background" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{"color":"purple","value":null}] } } }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Cache Hit Rate",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [{ "expr": "rate(codelens_cache_hits_total[5m]) / (rate(codelens_cache_hits_total[5m]) + rate(codelens_cache_misses_total[5m])) * 100", "legendFormat": "Hit %" }],
+      "options": { "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "percent", "color": { "mode": "thresholds" }, "thresholds": { "steps": [{"color":"red","value":0},{"color":"yellow","value":50},{"color":"green","value":80}] } } }
+    },
+    {
+      "id": 4, "type": "stat", "title": "P95 Response Time",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(codelens_http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P95" }],
+      "options": { "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "thresholds" }, "thresholds": { "steps": [{"color":"green","value":null},{"color":"yellow","value":1},{"color":"red","value":3}] } } }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "HTTP Request Rate",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "sum(rate(codelens_http_requests_total[1m])) by (status_code)", "legendFormat": "{{status_code}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "AI Analysis Duration (P50 / P95 / P99)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(codelens_ai_analysis_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(codelens_ai_analysis_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(codelens_ai_analysis_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P99" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 7, "type": "piechart", "title": "Analyses by Mode",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
+      "targets": [{ "expr": "sum(codelens_ai_analysis_total) by (mode)", "legendFormat": "{{mode}}" }]
+    },
+    {
+      "id": 8, "type": "bargauge", "title": "Analyses by Language",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
+      "targets": [{ "expr": "sum(codelens_ai_analysis_total) by (language)", "legendFormat": "{{language}}" }],
+      "options": { "orientation": "horizontal" }
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "MongoDB Operations",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
+      "targets": [{ "expr": "sum(rate(codelens_mongodb_operations_total[1m])) by (operation)", "legendFormat": "{{operation}}" }],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    }
+  ],
+  "schemaVersion": 39
+}

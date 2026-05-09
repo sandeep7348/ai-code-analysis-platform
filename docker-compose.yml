@@ -1,0 +1,203 @@
+services:
+
+  mongodb:
+    image: mongo:7
+    container_name: codelens-mongodb
+    restart: unless-stopped
+
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secret123
+      MONGO_INITDB_DATABASE: codelens
+
+    ports:
+      - "27017:27017"
+
+    volumes:
+      - mongo_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+    networks:
+      - codelens-net
+
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: codelens-redis
+    restart: unless-stopped
+
+    command: redis-server --requirepass redis123 --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+    ports:
+      - "6380:6379"
+
+    volumes:
+      - redis_data:/data
+
+    networks:
+      - codelens-net
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: codelens-backend
+    restart: unless-stopped
+
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+
+      MONGO_URI: mongodb://admin:secret123@mongodb:27017/codelens?authSource=admin
+
+      REDIS_URL: redis://:redis123@redis:6379
+
+      JWT_SECRET: supersecretjwtkey123
+
+      VITE_OR_API_KEY: ${VITE_OR_API_KEY}
+      VITE_OR_BASE: ${VITE_OR_BASE}
+      VITE_OR_MODEL: ${VITE_OR_MODEL}
+
+      CORS_ORIGIN: http://localhost:3000
+
+    ports:
+      - "5000:5000"
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    networks:
+      - codelens-net
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+      args:
+        REACT_APP_API_URL: http://localhost:5000
+
+    container_name: codelens-frontend
+    restart: unless-stopped
+
+    ports:
+      - "3000:80"
+
+    depends_on:
+      - backend
+
+    networks:
+      - codelens-net
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: codelens-prometheus
+    restart: unless-stopped
+
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+
+    ports:
+      - "9090:9090"
+
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+    networks:
+      - codelens-net
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: codelens-grafana
+    restart: unless-stopped
+
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: grafana123
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+
+    ports:
+      - "3001:3000"
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+
+    depends_on:
+      - prometheus
+
+    networks:
+      - codelens-net
+
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.40
+    container_name: codelens-mongodb-exporter
+    restart: unless-stopped
+
+    environment:
+      MONGODB_URI: mongodb://admin:secret123@mongodb:27017/?authSource=admin
+
+    ports:
+      - "9216:9216"
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+    networks:
+      - codelens-net
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    container_name: codelens-redis-exporter
+    restart: unless-stopped
+
+    environment:
+      REDIS_ADDR: redis://redis:6379
+      REDIS_PASSWORD: redis123
+
+    ports:
+      - "9121:9121"
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    networks:
+      - codelens-net
+
+volumes:
+  mongo_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  codelens-net:
+    driver: bridge
