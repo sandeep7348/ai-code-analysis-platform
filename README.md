@@ -1,3 +1,4 @@
+
 # CodeLens AI
 
 <p align="center">
@@ -10,32 +11,27 @@
 
 ---
 
-## Overview
+## 📖 Overview
 
-CodeLens AI is a production-style full-stack platform that leverages Large Language Models (LLMs) to provide intelligent code analysis capabilities for developers.
+**CodeLens AI** is a production-style full-stack platform that leverages Large Language Models (LLMs) to provide intelligent code analysis capabilities for developers. 
 
-The platform enables automated code review, code explanation, refactoring suggestions, and unit test generation through OpenRouter-powered AI integration while maintaining enterprise-grade observability, caching, authentication, and monitoring infrastructure.
-
----
-
-# Key Features
-
-- AI-powered code review and analysis
-- Intelligent code explanation in natural language
-- Automated code refactoring suggestions
-- AI-generated unit tests
-- JWT authentication and authorization
-- MongoDB-based history persistence
-- Redis caching layer for optimized performance
-- Prometheus metrics collection
-- Grafana monitoring dashboards
-- Dockerized multi-service deployment
-- Real-time analytics dashboard
-- Multi-language support
+The platform enables automated code review, code explanation, refactoring suggestions, and unit test generation through **OpenRouter-powered AI** integration while maintaining enterprise-grade observability, caching, authentication, and monitoring infrastructure.
 
 ---
 
-# System Architecture
+## ✨ Key Features
+
+* **AI Analysis:** Automated code review, natural language explanations, and refactoring suggestions.
+* **Test Generation:** Instant AI-generated unit tests for multiple programming languages.
+* **Security:** Secure JWT-based authentication and user authorization.
+* **Performance:** Redis caching layer for optimized API response times and LLM costs.
+* **Persistence:** MongoDB-based storage for analysis history and user data.
+* **Observability:** Real-time Prometheus metrics and interactive Grafana dashboards.
+* **Deployment:** Fully Dockerized multi-service environment for easy setup.
+
+---
+
+## 🏗 System Architecture
 
 ```text
 Frontend (React.js)
@@ -55,233 +51,149 @@ OpenRouter API
         ▼
 Prometheus + Grafana
 (Monitoring & Analytics)
+
 ```
 
 ---
 
-# Technology Stack
+## 🛠 Technology Stack
 
-## Frontend
-- React.js
-- Axios
-- Recharts
-- React Hot Toast
+### Frontend
 
-## Backend
-- Node.js
-- Express.js
-- MongoDB
-- Redis
-- JWT Authentication
-- Winston Logger
+* **Framework:** React.js
+* **State/Data:** Axios, Recharts
+* **UI/UX:** React Hot Toast
 
-## AI Integration
-- OpenRouter API
-- Large Language Models (LLMs)
+### Backend
 
-## Monitoring & DevOps
-- Docker
-- Docker Compose
-- Prometheus
-- Grafana
+* **Runtime:** Node.js (Express.js)
+* **Database:** MongoDB
+* **Cache:** Redis
+* **Security:** JWT Authentication
+* **Logging:** Winston
+
+### AI & DevOps
+
+* **LLM Provider:** OpenRouter API
+* **Containerization:** Docker, Docker Compose
+* **Monitoring:** Prometheus, Grafana
 
 ---
 
-# Project Structure
+## 🚀 Getting Started
 
-```text
-codelens-ai/
-│
-├── backend/
-│   ├── routes/
-│   ├── src/
-│   │   ├── middleware/
-│   │   ├── metrics/
-│   │   ├── models/
-│   │   └── index.js
-│   │
-│   ├── Dockerfile
-│   ├── package.json
-│   └── .env
-│
-├── frontend/
-│
-├── grafana/
-├── prometheus/
-│
-├── docker-compose.yml
-└── README.md
+### 1. Clone the Repository
+
+```bash
+git clone [https://github.com/sandeep7348/ai-code-analysis-platform.git](https://github.com/sandeep7348/ai-code-analysis-platform.git)
+cd ai-code-analysis-platform
+
 ```
 
----
+### 2. Environment Configuration
 
-# Environment Configuration
-
-Create a `.env` file inside the backend directory.
+Create a `.env` file in the `backend/` directory:
 
 ```env
 OR_API_KEY=your_openrouter_api_key
-
-OR_BASE=https://openrouter.ai/api/v1
-
+OR_BASE=[https://openrouter.ai/api/v1](https://openrouter.ai/api/v1)
 OR_MODEL=meta-llama/llama-3.3-8b-instruct:free
-
 PORT=5000
-
 JWT_SECRET=your_secure_jwt_secret
-
 CORS_ORIGIN=http://localhost:3000
-
 MONGO_URI=mongodb://mongodb:27017/codelens
-
 REDIS_URL=redis://redis:6379
+
 ```
 
----
-
-# Installation
-
-## Clone Repository
+### 3. Run Application
 
 ```bash
-git clone https://github.com/your-username/codelens-ai.git
+docker-compose up --build
 
-cd codelens-ai
 ```
 
 ---
 
-# Run Application
-
-```bash
-docker compose up --build
-```
-
----
-
-# Application Services
+## 📊 Application Services
 
 | Service | URL |
-|---|---|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:5000 |
-| Grafana Dashboard | http://localhost:3001 |
-| Prometheus Metrics | http://localhost:9090 |
+| --- | --- |
+| **Frontend** | `http://localhost:3000` |
+| **Backend API** | `http://localhost:5000` |
+| **Grafana Dashboard** | `http://localhost:3001` |
+| **Prometheus Metrics** | `http://localhost:9090` |
 
 ---
 
-# API Endpoints
+## 🔌 API Reference
 
-## Authentication
+### AI Analysis
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Register a new user |
-| POST | `/api/auth/login` | Authenticate user |
-| GET | `/api/auth/me` | Get authenticated user |
+`POST /api/analyze`
 
----
-
-## AI Analysis
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/analyze` | Analyze submitted code |
-
-### Supported Analysis Modes
-
-- `review`
-- `explain`
-- `refactor`
-- `test`
-
----
-
-## History
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/history` | Fetch analysis history |
-| GET | `/api/history/stats` | Fetch dashboard analytics |
-| DELETE | `/api/history/:id` | Delete analysis |
-
----
-
-# Example API Request
+**Payload:**
 
 ```json
 {
-  "code": "console.log('Hello World')",
+  "code": "function add(a, b) { return a + b }",
   "language": "javascript",
-  "mode": "review"
+  "mode": "review" 
 }
+
 ```
 
----
-
-# Monitoring & Observability
-
-The platform includes integrated monitoring infrastructure for performance analysis and operational insights.
-
-## Metrics Tracked
-
-- API request rates
-- AI response latency
-- Redis cache hit ratio
-- MongoDB operations
-- Request duration analytics
-- Backend health status
+*Supported Modes: `review`, `explain`, `refactor`, `test*`
 
 ---
 
-## Grafana Credentials
+## 📈 Monitoring & Observability
 
-```text
-Username: admin
-Password: grafana123
-```
+The platform includes integrated monitoring for performance analysis:
 
----
-
-# Supported Languages
-
-- JavaScript
-- TypeScript
-- Python
-- C++
-- Java
-- Go
-- Rust
+* API request rates and duration analytics.
+* AI Model response latency.
+* Redis cache hit/miss ratio.
+* **Grafana Credentials:** `admin` / `grafana123`
 
 ---
 
-# Future Enhancements
+## 📸 Screenshots
 
-- GitHub integration
-- Real-time collaboration
-- AI coding assistant
-- Team workspaces
-- Exportable reports
-- Secure code execution sandbox
-- CI/CD integration
+<p align="center">
+<b>Main Dashboard</b>
+
+
+
+
+<img src="./screenshots/dashboard.png" width="800" alt="CodeLens Dashboard">
+</p>
+
+<p align="center">
+<b>AI Analysis Results</b>
+
+
+
+
+<img src="./screenshots/analysis.png" width="800" alt="AI Analysis">
+</p>
+
+<p align="center">
+<b>Grafana Monitoring</b>
+
+
+
+
+<img src="./screenshots/grafana.png" width="800" alt="Grafana Metrics">
+</p>
 
 ---
 
-# Author
+## 👤 Author
 
 **Sandeep Choudhary**
+[GitHub Profile](https://github.com/sandeep7348)
 
----
+```
 
-
----
-
-# Screenshots
-
-Add project screenshots here:
-
-- Dashboard
-- AI Analysis
-- History Page
-- Grafana Monitoring
-- Prometheus Metrics
+```
