@@ -97,6 +97,101 @@ router.get('/stats', authMiddleware, async (req, res) => {
   }
 });
 
+// PUT /api/history/:id/pin — toggle pin status
+router.put('/:id/pin', authMiddleware, async (req, res) => {
+  try {
+    const analysis = await Analysis.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        userId: req.user.id
+      },
+      [
+        {
+          $set: {
+            isPinned: { $not: '$isPinned' }
+          }
+        }
+      ],
+      { new: true }
+    );
+
+    if (!analysis) {
+      return res.status(404).json({ error: 'Analysis not found' });
+    }
+
+    mongodbOperations.inc({ operation: 'update', collection: 'analyses' });
+    res.json({ success: true, isPinned: analysis.isPinned, analysis });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to toggle pin' });
+  }
+});
+
+// PUT /api/history/:id/archive — toggle archive status
+router.put('/:id/archive', authMiddleware, async (req, res) => {
+  try {
+    const analysis = await Analysis.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        userId: req.user.id
+      },
+      [
+        {
+          $set: {
+            isArchived: { $not: '$isArchived' }
+          }
+        }
+      ],
+      { new: true }
+    );
+
+    if (!analysis) {
+      return res.status(404).json({ error: 'Analysis not found' });
+    }
+
+    mongodbOperations.inc({ operation: 'update', collection: 'analyses' });
+    res.json({ success: true, isArchived: analysis.isArchived, analysis });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to toggle archive' });
+  }
+});
+
+// PUT /api/history/:id/rate — rate analysis quality
+router.put('/:id/rate', authMiddleware, async (req, res) => {
+  try {
+    const { rating, feedback } = req.body;
+
+    // Validate rating: -1 (bad), 0 (neutral), 1 (good)
+    if (![  -1, 0, 1].includes(rating)) {
+      return res.status(400).json({ error: 'Rating must be -1, 0, or 1' });
+    }
+
+    const analysis = await Analysis.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        userId: req.user.id
+      },
+      {
+        qualityRating: rating,
+        ...(feedback && { userFeedback: feedback })
+      },
+      { new: true }
+    );
+
+    if (!analysis) {
+      return res.status(404).json({ error: 'Analysis not found' });
+    }
+
+    mongodbOperations.inc({
+      operation: 'update',
+      collection: 'analyses'
+    });
+
+    res.json({ success: true, analysis });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to rate analysis' });
+  }
+});
+
 // DELETE /api/history/:id
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {

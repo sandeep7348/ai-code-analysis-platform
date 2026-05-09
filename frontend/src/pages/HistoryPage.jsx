@@ -25,6 +25,8 @@ export default function HistoryPage() {
   const [favorites, setFavorites] = useState(new Set(JSON.parse(localStorage.getItem('favorites') || '[]')));
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
+  const [showArchived, setShowArchived] = useState(false);
+  const [showOnlyPinned, setShowOnlyPinned] = useState(false);
   const { setCode, setMode, setLanguage } = useAnalysisStore();
 
   const load = async (p = 1) => {
@@ -96,6 +98,77 @@ export default function HistoryPage() {
     } catch (err) {
       toast.error('Failed to copy code');
     }
+  };
+
+  const rateAnalysis = async (id, rating) => {
+    try {
+      await historyApi.rateAnalysis(id, rating);
+      setAnalyses(prev =>
+        prev.map(a => a._id === id ? { ...a, qualityRating: rating } : a)
+      );
+      toast.success(rating === 1 ? '👍 Good!' : rating === -1 ? '👎 Poor' : '😐 Noted');
+    } catch {
+      toast.error('Failed to rate');
+    }
+  };
+
+  const togglePin = async (id) => {
+    try {
+      const res = await historyApi.pinAnalysis(id);
+      setAnalyses(prev =>
+        prev.map(a => a._id === id ? { ...a, isPinned: res.data.isPinned } : a)
+      );
+      toast.success(res.data.isPinned ? '📌 Pinned!' : '📌 Unpinned');
+    } catch {
+      toast.error('Failed to toggle pin');
+    }
+  };
+
+  const toggleArchive = async (id) => {
+    try {
+      const res = await historyApi.archiveAnalysis(id);
+      setAnalyses(prev =>
+        prev.map(a => a._id === id ? { ...a, isArchived: res.data.isArchived } : a)
+      );
+      toast.success(res.data.isArchived ? '📦 Archived' : '📦 Unarchived');
+    } catch {
+      toast.error('Failed to toggle archive');
+    }
+  };
+
+  const exportToCSV = (analyses) => {
+    const headers = ['Date', 'Mode', 'Language', 'Score', 'Lines', 'Rating', 'Duration (ms)'];
+    const rows = analyses.map(a => [
+      new Date(a.createdAt).toLocaleString(),
+      a.mode,
+      a.language,
+      a.score || '—',
+      a.codeSnippet.split('\n').length,
+      a.qualityRating || '0',
+      a.durationMs
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `codelens-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success('Exported to CSV!');
+  };
+
+  const exportToJSON = (analyses) => {
+    const dataStr = JSON.stringify(analyses, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `codelens-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success('Exported to JSON!');
   };
 
   const reRunAnalysis = (analysis) => {
@@ -530,6 +603,57 @@ export default function HistoryPage() {
                   >
                     {new Date(a.createdAt).toLocaleString()}
                   </span>
+
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <button
+                      onClick={() => rateAnalysis(a._id, 1)}
+                      style={{
+                        background: a.qualityRating === 1 ? '#1D9E7520' : 'transparent',
+                        border: a.qualityRating === 1 ? '1px solid #1D9E75' : '1px solid #2a2a3a',
+                        color: a.qualityRating === 1 ? '#1D9E75' : '#666',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        transition: 'all 0.2s'
+                      }}
+                      title="Good analysis"
+                    >
+                      👍
+                    </button>
+                    <button
+                      onClick={() => rateAnalysis(a._id, 0)}
+                      style={{
+                        background: a.qualityRating === 0 ? '#BA751720' : 'transparent',
+                        border: a.qualityRating === 0 ? '1px solid #BA7517' : '1px solid #2a2a3a',
+                        color: a.qualityRating === 0 ? '#BA7517' : '#666',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        transition: 'all 0.2s'
+                      }}
+                      title="Neutral"
+                    >
+                      😐
+                    </button>
+                    <button
+                      onClick={() => rateAnalysis(a._id, -1)}
+                      style={{
+                        background: a.qualityRating === -1 ? '#D85A3020' : 'transparent',
+                        border: a.qualityRating === -1 ? '1px solid #D85A30' : '1px solid #2a2a3a',
+                        color: a.qualityRating === -1 ? '#D85A30' : '#666',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        transition: 'all 0.2s'
+                      }}
+                      title="Poor analysis"
+                    >
+                      👎
+                    </button>
+                  </div>
 
                   <button
                     onClick={() => deleteItem(a._id)}

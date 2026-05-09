@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import toast from 'react-hot-toast';
 import { analyzeApi } from '../services/api';
@@ -17,8 +17,32 @@ export default function EditorPage() {
   const { code, mode, language, result, loading, chatHistory, setCode, setMode, setLanguage, setResult, setLoading, addChat, resetChat } = useAnalysisStore();
   const [chatInput, setChatInput] = useState('');
   const chatRef = useRef(null);
+  const analyzeRef = useRef(null);
 
   const activeMode = MODES.find(m => m.key === mode);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl+Enter / Cmd+Enter: Run analysis
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        analyzeRef.current?.();
+      }
+      // Ctrl+Shift+1-4: Switch mode
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+        const modeIndex = parseInt(e.key) - 1;
+        if (modeIndex >= 0 && modeIndex < MODES.length) {
+          e.preventDefault();
+          setMode(MODES[modeIndex].key);
+          toast.success(`Mode: ${MODES[modeIndex].label}`);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const analyze = async () => {
     if (!code.trim()) { toast.error('Paste some code first!'); return; }
@@ -37,6 +61,11 @@ export default function EditorPage() {
       setLoading(false);
     }
   };
+
+  // Store analyze function in ref for keyboard shortcuts
+  useEffect(() => {
+    analyzeRef.current = analyze;
+  }, [code, mode, language]);
 
   const sendChat = async () => {
     if (!chatInput.trim() || !result) return;
@@ -153,6 +182,18 @@ export default function EditorPage() {
           }}>
             {LANGUAGES.map(l => <option key={l}>{l}</option>)}
           </select>
+        </div>
+
+        {/* Keyboard Shortcuts Hint */}
+        <div style={{
+          fontSize: '11px',
+          color: '#555',
+          background: '#0f0f16',
+          padding: '8px 12px',
+          borderRadius: '8px',
+          border: '1px solid #2a2a3a'
+        }}>
+          ⌨️ <strong>Shortcuts:</strong> Ctrl+Enter = Run • Ctrl+Shift+1-4 = Switch Mode
         </div>
 
         {/* Monaco Editor */}

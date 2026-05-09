@@ -51,7 +51,10 @@ export const analyzeApi = {
 export const historyApi = {
   getHistory: (page = 1, limit = 10) => api.get(`/api/history?page=${page}&limit=${limit}`),
   getStats: () => api.get('/api/history/stats'),
-  deleteAnalysis: (id) => api.delete(`/api/history/${id}`)
+  deleteAnalysis: (id) => api.delete(`/api/history/${id}`),
+  rateAnalysis: (id, rating, feedback = '') => api.put(`/api/history/${id}/rate`, { rating, feedback }),
+  pinAnalysis: (id) => api.put(`/api/history/${id}/pin`),
+  archiveAnalysis: (id) => api.put(`/api/history/${id}/archive`)
 };
 
 export default api;
