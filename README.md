@@ -273,9 +273,6 @@ Password: grafana123
 
 ---
 
-# License
-
-This project is licensed under the MIT License.
 
 ---
 
