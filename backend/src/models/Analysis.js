@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const analysisSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   sessionId: { type: String, index: true },
-  mode: { type: String, enum: ['review', 'explain', 'refactor', 'test'], required: true },
+  mode: { type: String, enum: ['review', 'explain', 'refactor', 'test', 'performance', 'compare'], required: true },
   language: { type: String, required: true },
   codeHash: { type: String, required: true },
   codeSnippet: { type: String, required: true, maxlength: 50000 },

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Editor from '@monaco-editor/react';
 import toast from 'react-hot-toast';
 import { analyzeApi } from '../services/api';
@@ -8,7 +8,8 @@ const MODES = [
   { key: 'review', label: '🔍 Review', color: '#7F77DD' },
   { key: 'explain', label: '💡 Explain', color: '#1D9E75' },
   { key: 'refactor', label: '✨ Refactor', color: '#BA7517' },
-  { key: 'test', label: '🧪 Generate Tests', color: '#D85A30' }
+  { key: 'test', label: '🧪 Generate Tests', color: '#D85A30' },
+  { key: 'performance', label: '⚡ Performance', color: '#FF6B9D' }
 ];
 
 const LANGUAGES = ['JavaScript', 'TypeScript', 'Python', 'Go', 'Rust', 'Java', 'C++', 'PHP'];
@@ -20,6 +21,11 @@ export default function EditorPage() {
   const analyzeRef = useRef(null);
 
   const activeMode = MODES.find(m => m.key === mode);
+
+  // Memoize code change handler for responsive cursor
+  const handleCodeChange = useCallback((val) => {
+    setCode(val || '');
+  }, [setCode]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -153,6 +159,188 @@ export default function EditorPage() {
       );
     }
 
+    if (mode === 'performance' && r.score !== undefined) {
+      return (
+        <div style={{ overflowY: 'auto', height: '100%', padding: '1rem' }}>
+          {/* Performance Score */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: '#1a1a24', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '50%',
+              border: `4px solid ${r.score >= 75 ? '#1D9E75' : r.score >= 50 ? '#FF6B9D' : '#D85A30'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '20px', fontWeight: 800, color: '#e8e8f0'
+            }}>{r.score}</div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '15px' }}>Performance Score</div>
+              <div style={{ color: '#888', fontSize: '13px', marginTop: '4px' }}>{r.summary}</div>
+              {result.cached && <span style={{ fontSize: '11px', background: '#1D9E7520', color: '#1D9E75', padding: '2px 8px', borderRadius: '4px', marginTop: '6px', display: 'inline-block' }}>⚡ Cached</span>}
+            </div>
+          </div>
+
+          {/* Complexity */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+            <div style={{ background: '#1a1a24', borderRadius: '8px', padding: '12px' }}>
+              <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>TIME COMPLEXITY</div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: '#FF6B9D', fontFamily: 'monospace' }}>{r.timeComplexity || 'N/A'}</div>
+            </div>
+            <div style={{ background: '#1a1a24', borderRadius: '8px', padding: '12px' }}>
+              <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>SPACE COMPLEXITY</div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: '#FF6B9D', fontFamily: 'monospace' }}>{r.spaceComplexity || 'N/A'}</div>
+            </div>
+          </div>
+
+          {/* Performance Metrics */}
+          {r.metrics && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+              {[['Efficiency', r.metrics.efficiency, '#FF6B9D'], ['Scalability', r.metrics.scalability, '#1D9E75'], ['Memory', r.metrics.memoryUsage, '#BA7517']].map(([label, val, color]) => (
+                <div key={label} style={{ background: '#1a1a24', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 800, color }}>{val}</div>
+                  <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>{label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Bottlenecks */}
+          {r.bottlenecks?.length > 0 && (
+            <Section title={`🔴 Bottlenecks (${r.bottlenecks.length})`} color="#D85A30">
+              {r.bottlenecks.map((bottleneck, i) => (
+                <Block key={i} color="#D85A30">
+                  <strong>{bottleneck.title}</strong>
+                  <span style={{ display: 'block', color: '#888', marginTop: '4px', fontSize: '12px' }}>{bottleneck.detail}</span>
+                  <div style={{ marginTop: '6px', display: 'flex', gap: '8px' }}>
+                    <span style={{ fontSize: '10px', background: '#D85A3020', color: '#D85A30', padding: '1px 6px', borderRadius: '4px' }}>Impact: {bottleneck.impact}</span>
+                    {bottleneck.lineNumbers && <span style={{ fontSize: '10px', background: '#3a3a4a', color: '#aaa', padding: '1px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>Line: {bottleneck.lineNumbers}</span>}
+                  </div>
+                </Block>
+              ))}
+            </Section>
+          )}
+
+          {/* Optimizations */}
+          {r.optimizations?.length > 0 && (
+            <Section title={`✅ Optimizations (${r.optimizations.length})`} color="#1D9E75">
+              {r.optimizations.map((opt, i) => (
+                <Block key={i} color="#1D9E75">
+                  <strong>{opt.suggestion}</strong>
+                  <span style={{ display: 'block', color: '#888', marginTop: '4px', fontSize: '12px' }}>{opt.expectedImprovement}</span>
+                  <span style={{ fontSize: '10px', background: '#1D9E7520', color: '#1D9E75', padding: '1px 6px', borderRadius: '4px', marginTop: '4px', display: 'inline-block' }}>Difficulty: {opt.difficulty}</span>
+                </Block>
+              ))}
+            </Section>
+          )}
+
+          {/* Code Suggestions with Complexity Comparison */}
+          {r.codeSuggestions?.length > 0 && (
+            <Section title={`⚡ Code Optimizations (${r.codeSuggestions.length})`} color="#7F77DD">
+              {r.codeSuggestions.map((suggestion, i) => (
+                <div key={i} style={{ background: '#1a1a24', borderRadius: '12px', padding: '14px', marginBottom: '12px', borderLeft: '4px solid #7F77DD' }}>
+                  {/* Issue Title */}
+                  <div style={{ fontWeight: 700, fontSize: '13px', color: '#e8e8f0', marginBottom: '8px' }}>
+                    {suggestion.issue}
+                  </div>
+
+                  {/* Complexity Comparison */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                    <div style={{ background: '#0f0f13', borderRadius: '8px', padding: '8px', borderLeft: '3px solid #D85A30' }}>
+                      <div style={{ fontSize: '10px', color: '#888', marginBottom: '2px' }}>ORIGINAL</div>
+                      <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 800, color: '#D85A30' }}>
+                        {suggestion.originalComplexity}
+                      </div>
+                    </div>
+                    <div style={{ background: '#0f0f13', borderRadius: '8px', padding: '8px', borderLeft: '3px solid #1D9E75' }}>
+                      <div style={{ fontSize: '10px', color: '#888', marginBottom: '2px' }}>OPTIMIZED</div>
+                      <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 800, color: '#1D9E75' }}>
+                        {suggestion.optimizedComplexity}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Improvement Badge */}
+                  <div style={{ 
+                    display: 'inline-block',
+                    background: 'linear-gradient(135deg, #7F77DD20 0%, #1D9E7520 100%)',
+                    border: '1px solid #7F77DD',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    marginBottom: '12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: '#7F77DD'
+                  }}>
+                    ⬇️ {suggestion.improvementPercent}% faster
+                  </div>
+
+                  {/* Code Comparison */}
+                  <div style={{ marginBottom: '10px' }}>
+                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px', fontWeight: 600 }}>❌ Original Code:</div>
+                    <div style={{ 
+                      background: '#0f0f13', 
+                      borderRadius: '6px', 
+                      padding: '8px 10px', 
+                      fontSize: '12px', 
+                      color: '#999', 
+                      fontFamily: 'monospace',
+                      maxHeight: '120px',
+                      overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      borderLeft: '3px solid #D85A30'
+                    }}>
+                      {suggestion.originalCode}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '10px' }}>
+                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px', fontWeight: 600 }}>✅ Optimized Code:</div>
+                    <div style={{ 
+                      background: '#0f0f13', 
+                      borderRadius: '6px', 
+                      padding: '8px 10px', 
+                      fontSize: '12px', 
+                      color: '#ccc', 
+                      fontFamily: 'monospace',
+                      maxHeight: '120px',
+                      overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      borderLeft: '3px solid #1D9E75'
+                    }}>
+                      {suggestion.optimizedCode}
+                    </div>
+                  </div>
+
+                  {/* Explanation */}
+                  <div style={{ fontSize: '12px', color: '#aaa', lineHeight: 1.5, marginBottom: '8px' }}>
+                    <span style={{ color: '#888', fontWeight: 600 }}>Why:</span> {suggestion.explanation}
+                  </div>
+
+                  {/* Difficulty */}
+                  <span style={{ 
+                    fontSize: '10px', 
+                    background: suggestion.difficulty === 'easy' ? '#1D9E7520' : suggestion.difficulty === 'medium' ? '#BA751720' : '#D85A3020', 
+                    color: suggestion.difficulty === 'easy' ? '#1D9E75' : suggestion.difficulty === 'medium' ? '#BA7517' : '#D85A30', 
+                    padding: '2px 8px', 
+                    borderRadius: '4px',
+                    display: 'inline-block'
+                  }}>
+                    Difficulty: {suggestion.difficulty}
+                  </span>
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* Performance Tips */}
+          {r.tips?.length > 0 && (
+            <Section title="💡 Performance Tips" color="#BA7517">
+              {r.tips.map((tip, i) => <Block key={i} color="#BA7517">{tip}</Block>)}
+            </Section>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div style={{ padding: '1rem', overflowY: 'auto', height: '100%' }}>
         <div style={{ fontSize: '13px', lineHeight: 1.8, color: '#ccc', whiteSpace: 'pre-wrap' }}>
@@ -193,7 +381,7 @@ export default function EditorPage() {
           borderRadius: '8px',
           border: '1px solid #2a2a3a'
         }}>
-          ⌨️ <strong>Shortcuts:</strong> Ctrl+Enter = Run • Ctrl+Shift+1-4 = Switch Mode
+          ⌨️ <strong>Shortcuts:</strong> Ctrl+Enter = Run • Ctrl+Shift+1-5 = Switch Mode
         </div>
 
         {/* Monaco Editor */}
@@ -202,12 +390,25 @@ export default function EditorPage() {
             height="100%"
             language={language.toLowerCase()}
             value={code}
-            onChange={val => setCode(val || '')}
+            onChange={handleCodeChange}
             theme="vs-dark"
             options={{
-              fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
-              minimap: { enabled: false }, padding: { top: 16 },
-              lineNumbers: 'on', scrollBeyondLastLine: false
+              fontSize: 13,
+              fontFamily: "'JetBrains Mono', monospace",
+              minimap: { enabled: false },
+              padding: { top: 16 },
+              lineNumbers: 'on',
+              scrollBeyondLastLine: false,
+              autoClosingBrackets: 'always',
+              autoClosingQuotes: 'always',
+              formatOnPaste: false,
+              formatOnType: false,
+              renderWhitespace: 'none',
+              roundedSelection: true,
+              smoothScrolling: true,
+              cursorBlinking: 'blink',
+              cursorStyle: 'line',
+              mouseWheelZoom: false
             }}
           />
         </div>
