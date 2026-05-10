@@ -179,12 +179,12 @@ The platform includes integrated monitoring for performance analysis:
 </p>
 
 <p align="center">
-<b>Grafana Monitoring</b>
+<b>History</b>
 
 
 
 
-<img src="./screenshots/grafana.png" width="800" alt="Grafana Metrics">
+<img src="./screenshots/history.png" width="800" alt="Grafana Metrics">
 </p>
 
 ---
