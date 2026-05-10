@@ -175,7 +175,7 @@ The platform includes integrated monitoring for performance analysis:
 
 
 
-<img src="./screenshots/analysis.png" width="800" alt="AI Analysis">
+<img src="./screenshots/explainCode.png" width="800" alt="AI Analysis">
 </p>
 
 <p align="center">
