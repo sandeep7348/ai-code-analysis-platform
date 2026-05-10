@@ -166,7 +166,7 @@ The platform includes integrated monitoring for performance analysis:
 
 
 
-<img src="./screenshots/dashboard.png" width="800" alt="CodeLens Dashboard">
+<img src="./screenshots/Dashboard.png" width="800" alt="CodeLens Dashboard">
 </p>
 
 <p align="center">
