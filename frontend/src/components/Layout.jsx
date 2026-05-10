@@ -37,12 +37,12 @@ export default function Layout() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
           <span style={{ fontWeight: 800, fontSize: '18px', color: '#7F77DD' }}>CodeLens AI</span>
-          {['/', '/history', '/dashboard'].map((path, i) => (
+          {['/', '/compare', '/history', '/dashboard'].map((path, i) => (
             <NavLink key={path} to={path} end={path === '/'} style={({ isActive }) => ({
               fontSize: '14px', fontWeight: 600, color: isActive ? '#7F77DD' : theme === 'dark' ? '#888' : '#666',
               textDecoration: 'none', transition: 'color 0.15s'
             })}>
-              {['Editor', 'History', 'Dashboard'][i]}
+              {['Editor', 'Compare', 'History', 'Dashboard'][i]}
             </NavLink>
           ))}
         </div>

@@ -92,6 +92,32 @@ Code:\n\`\`\`${lang}\n${code}\n\`\`\``
   test: (code, lang) => ({
     system: `You are a ${lang} testing expert.`,
     user: `Write comprehensive unit tests for this ${lang} code. Include happy path, edge cases, and error cases. Use standard testing conventions.\n\`\`\`${lang}\n${code}\n\`\`\``
+  }),
+  performance: (code, lang) => ({
+    system: `You are an expert ${lang} performance engineer. Analyze code for bottlenecks, complexity, and optimization opportunities. Always respond with valid JSON only. Include concrete optimized code examples.`,
+    user: `Analyze this ${lang} code for performance and return JSON:
+{
+  "score": <0-100>,
+  "summary": "<one-line-performance-summary>",
+  "timeComplexity": "<O-notation>",
+  "spaceComplexity": "<O-notation>",
+  "bottlenecks": [{"title":"...","detail":"...","impact":"high|medium|low","lineNumbers":"..."}],
+  "codeSuggestions": [
+    {
+      "issue": "...",
+      "originalComplexity": "<O-notation>",
+      "optimizedComplexity": "<O-notation>",
+      "improvementPercent": <1-99>,
+      "originalCode": "code snippet",
+      "optimizedCode": "improved code snippet",
+      "explanation": "why this is faster",
+      "difficulty": "easy|medium|hard"
+    }
+  ],
+  "tips": ["..."],
+  "metrics": {"efficiency":<1-10>,"scalability":<1-10>,"memoryUsage":<1-10>}
+}
+Code:\n\`\`\`${lang}\n${code}\n\`\`\``
   })
 };
 
@@ -101,7 +127,7 @@ router.post('/',
   optionalAuth,
   [
     body('code').notEmpty().isLength({ max: 50000 }).withMessage('Code must be 1–50000 characters'),
-    body('mode').isIn(['review', 'explain', 'refactor', 'test']),
+    body('mode').isIn(['review', 'explain', 'refactor', 'test', 'performance']),
     body('language').notEmpty().isLength({ max: 50 })
   ],
   async (req, res) => {
@@ -135,7 +161,7 @@ router.post('/',
       timer();
 
       let result;
-      if (mode === 'review') {
+      if (mode === 'review' || mode === 'performance') {
         try {
           result = JSON.parse(rawText.replace(/```json|```/g, '').trim());
         } catch {
@@ -209,6 +235,114 @@ router.post('/chat',
     } catch (err) {
       logger.error(`Chat error: ${err.message}`);
       res.status(502).json({ error: 'Chat request failed' });
+    }
+  }
+);
+
+// POST /api/analyze/compare — compare two code snippets
+router.post('/compare',
+  analyzeLimiter,
+  optionalAuth,
+  [
+    body('originalCode').notEmpty().isLength({ max: 50000 }).withMessage('Original code must be 1–50000 characters'),
+    body('refactoredCode').notEmpty().isLength({ max: 50000 }).withMessage('Refactored code must be 1–50000 characters'),
+    body('language').notEmpty().isLength({ max: 50 })
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { originalCode, refactoredCode, language } = req.body;
+    const codeHash = crypto.createHash('sha256').update(`${originalCode}:${refactoredCode}:compare:${language}`).digest('hex');
+    const cacheKey = `comparison:${codeHash}`;
+    const startTime = Date.now();
+
+    // Cache check
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      cacheHits.inc({ cache_type: 'comparison' });
+      aiAnalysisTotal.inc({ mode: 'compare', language, status: 'cache_hit' });
+      logger.info(`Cache HIT for comparison/${language}`);
+      return res.json({ ...cached, cached: true });
+    }
+    cacheMisses.inc({ cache_type: 'comparison' });
+
+    const timer = aiAnalysisDuration.startTimer({ mode: 'compare', language });
+
+    try {
+      const { rawText, tokensUsed } = await orChat({
+        system: `You are an expert ${language} code reviewer. Compare two code snippets and return valid JSON only.`,
+        messages: [{ 
+          role: 'user', 
+          content: `Compare these two ${language} code snippets and return JSON:
+{
+  "improvements": ["..."],
+  "removedCode": ["..."],
+  "newCode": ["..."],
+  "readabilityImpact": "improved|same|degraded",
+  "performanceImpact": "improved|same|degraded",
+  "securityImpact": "improved|same|degraded",
+  "complexityChange": "<increased by X|decreased by X|unchanged>",
+  "summary": "<detailed comparison summary>"
+}
+
+ORIGINAL:
+\`\`\`${language}
+${originalCode}
+\`\`\`
+
+REFACTORED:
+\`\`\`${language}
+${refactoredCode}
+\`\`\`` 
+        }],
+        max_tokens: 1500,
+      });
+      timer();
+
+      let result;
+      try {
+        result = JSON.parse(rawText.replace(/```json|```/g, '').trim());
+      } catch {
+        result = { summary: rawText, text: rawText };
+      }
+
+      const durationMs = Date.now() - startTime;
+      const payload = { 
+        result, 
+        originalCode, 
+        refactoredCode, 
+        language, 
+        durationMs, 
+        tokensUsed 
+      };
+
+      // Save to MongoDB
+      const analysis = await Analysis.create({
+        userId: req.user?.id,
+        sessionId: req.headers['x-session-id'],
+        mode: 'compare',
+        language,
+        codeHash,
+        codeSnippet: originalCode,
+        result,
+        tokensUsed: payload.tokensUsed,
+        durationMs
+      });
+      mongodbOperations.inc({ operation: 'insert', collection: 'analyses' });
+
+      // Cache for 1 hour
+      await setCache(cacheKey, payload, 3600);
+
+      aiAnalysisTotal.inc({ mode: 'compare', language, status: 'success' });
+      logger.info(`Comparison complete: ${language} in ${durationMs}ms`);
+
+      res.json({ ...payload, id: analysis._id, cached: false });
+    } catch (err) {
+      timer();
+      aiAnalysisTotal.inc({ mode: 'compare', language, status: 'error' });
+      logger.error(`Comparison failed: ${err.message}`);
+      res.status(502).json({ error: 'Code comparison failed. Please try again.' });
     }
   }
 );

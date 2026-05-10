@@ -44,7 +44,8 @@ export const authApi = {
 // Analysis
 export const analyzeApi = {
   analyze: (code, mode, language) => api.post('/api/analyze', { code, mode, language }),
-  chat: (question, history, language) => api.post('/api/analyze/chat', { question, history, language })
+  chat: (question, history, language) => api.post('/api/analyze/chat', { question, history, language }),
+  compare: (originalCode, refactoredCode, language) => api.post('/api/analyze/compare', { originalCode, refactoredCode, language })
 };
 
 // History
